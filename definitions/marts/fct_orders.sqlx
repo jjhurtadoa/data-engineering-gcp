@@ -1,0 +1,52 @@
+config {
+  type: "table",
+  schema: "marts",
+  description: "Fact table de órdenes con métricas de revenue y fulfillment",
+  tags: ["marts", "facts"],
+  columns: {
+    order_id: "Identificador único de la orden",
+    user_id: "Identificador del usuario",
+    product_id: "Identificador del producto",
+    order_item_id: "Identificador del ítem dentro de la orden",
+    status: "Estado del ítem: Complete, Cancelled, Returned, Processing, Shipped",
+    sale_price: "Precio de venta del ítem",
+    cost: "Costo del producto",
+    margin: "Margen bruto del ítem: sale_price - cost",
+    gender: "Género del usuario que realizó la orden",
+    country: "País del usuario",
+    age_group: "Grupo etario del usuario",
+    traffic_source: "Canal de adquisición del usuario",
+    category: "Categoría del producto",
+    department: "Departamento del producto",
+    brand: "Marca del producto",
+    order_created_at: "Fecha de creación de la orden",
+    order_date: "Fecha sin hora de creación de la orden",
+    days_to_ship: "Días entre creación y envío",
+    days_to_deliver: "Días entre envío y entrega"
+  }
+}
+
+SELECT
+  o.order_id,
+  o.user_id,
+  oi.product_id,
+  oi.order_item_id,
+  oi.status,
+  oi.sale_price,
+  p.cost,
+  ROUND(oi.sale_price - p.cost, 2)                          AS margin,
+  u.gender,
+  u.country,
+  u.age_group,
+  u.traffic_source,
+  p.category,
+  p.department,
+  p.brand,
+  o.created_at                                              AS order_created_at,
+  DATE(o.created_at)                                        AS order_date,
+  DATE_DIFF(DATE(o.shipped_at), DATE(o.created_at), DAY)   AS days_to_ship,
+  DATE_DIFF(DATE(o.delivered_at), DATE(o.shipped_at), DAY) AS days_to_deliver
+FROM ${ref("stg_orders")}      o
+JOIN ${ref("stg_order_items")} oi ON o.order_id   = oi.order_id
+JOIN ${ref("dim_users")}       u  ON o.user_id    = u.user_id
+JOIN ${ref("dim_products")}    p  ON oi.product_id = p.product_id

@@ -1,0 +1,38 @@
+config {
+  type: "table",
+  schema: "staging",
+  description: "Ítems de órdenes limpios — tabla transaccional central del modelo",
+  tags: ["staging", "order_items"],
+  assertions: {
+    uniqueKey: ["order_item_id"],
+    nonNull: ["order_item_id", "order_id", "product_id", "sale_price"]
+  },
+  columns: {
+    order_item_id: "Identificador único del ítem",
+    order_id: "Orden a la que pertenece el ítem",
+    user_id: "Usuario que realizó la orden",
+    product_id: "Producto comprado",
+    inventory_item_id: "Ítem de inventario específico despachado",
+    status: "Estado del ítem: Complete, Cancelled, Returned, Processing, Shipped",
+    sale_price: "Precio de venta del ítem redondeado a 2 decimales",
+    created_at: "Fecha de creación del ítem",
+    shipped_at: "Fecha de envío del ítem",
+    delivered_at: "Fecha de entrega del ítem",
+    returned_at: "Fecha de devolución, NULL si no aplica"
+  }
+}
+
+SELECT
+  id                                      AS order_item_id,
+  order_id,
+  user_id,
+  product_id,
+  inventory_item_id,
+  status,
+  ROUND(sale_price, 2)                    AS sale_price,
+  TIMESTAMP_TRUNC(created_at, SECOND)     AS created_at,
+  TIMESTAMP_TRUNC(shipped_at, SECOND)     AS shipped_at,
+  TIMESTAMP_TRUNC(delivered_at, SECOND)   AS delivered_at,
+  TIMESTAMP_TRUNC(returned_at, SECOND)    AS returned_at
+FROM ${ref("order_items")}
+WHERE id IS NOT NULL

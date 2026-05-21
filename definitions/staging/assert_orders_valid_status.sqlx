@@ -1,0 +1,8 @@
+config {
+  type: "assertion",
+  description: "Todos los status de órdenes deben ser valores válidos conocidos"
+}
+
+SELECT order_id, status
+FROM ${ref("stg_orders")}
+WHERE status NOT IN ('Complete', 'Cancelled', 'Processing', 'Shipped', 'Returned')

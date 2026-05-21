@@ -1,0 +1,5 @@
+defaultProject: data-engineer-project-496417
+defaultLocation: us
+defaultDataset: staging
+defaultAssertionDataset: dataform_assertions
+dataformCoreVersion: 3.0.52

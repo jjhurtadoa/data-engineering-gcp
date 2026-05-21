@@ -1,0 +1,23 @@
+config {
+  type: "assertion",
+  description: "Todo order_item en fct_orders debe tener un order, user y product válido"
+}
+
+-- Ítems sin orden válida
+SELECT 'orphan_order_id' AS check_name, order_item_id
+FROM ${ref("fct_orders")}
+WHERE order_id NOT IN (SELECT order_id FROM ${ref("stg_orders")})
+
+UNION ALL
+
+-- Ítems sin usuario válido
+SELECT 'orphan_user_id' AS check_name, order_item_id
+FROM ${ref("fct_orders")}
+WHERE user_id NOT IN (SELECT user_id FROM ${ref("stg_users")})
+
+UNION ALL
+
+-- Ítems sin producto válido
+SELECT 'orphan_product_id' AS check_name, order_item_id
+FROM ${ref("fct_orders")}
+WHERE product_id NOT IN (SELECT product_id FROM ${ref("stg_products")})
