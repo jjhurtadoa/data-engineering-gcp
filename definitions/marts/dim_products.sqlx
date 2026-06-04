@@ -1,0 +1,34 @@
+config {
+  type: "table",
+  schema: "marts",
+  description: "Dimensión de productos con atributos comerciales",
+  tags: ["marts", "dimensions"],
+  columns: {
+    product_id: "Identificador único del producto",
+    name: "Nombre del producto",
+    brand: "Marca del producto",
+    category: "Categoría del producto",
+    department: "Departamento: Men, Women",
+    sku: "Código de referencia del producto",
+    retail_price: "Precio de venta al público",
+    cost: "Costo del producto",
+    margin: "Margen bruto unitario: retail_price - cost",
+    margin_pct: "Porcentaje de margen sobre el precio de venta",
+    distribution_center_id: "Centro de distribución asignado"
+  }
+}
+
+SELECT
+  id                                          AS product_id,
+  name,
+  brand,
+  category,
+  department,
+  sku,
+  retail_price,
+  cost,
+  ROUND(retail_price - cost, 2)              AS margin,
+  ROUND((retail_price - cost) / NULLIF(retail_price, 0) * 100, 2) AS margin_pct,
+  distribution_center_id
+FROM ${ref("products")}
+WHERE id IS NOT NULL

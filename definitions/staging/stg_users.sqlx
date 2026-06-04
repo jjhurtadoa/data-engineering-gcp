@@ -1,0 +1,38 @@
+config {
+  type: "table",
+  schema: "staging",
+  description: "Usuarios limpios sin columnas PII directas",
+  tags: ["staging", "users"],
+  assertions: {
+    uniqueKey: ["user_id"],
+    nonNull: ["user_id", "country", "created_at"]
+    },
+  columns: {
+    user_id: "Identificador único del usuario",
+    age: "Edad del usuario",
+    gender: "Género del usuario",
+    state: "Estado o departamento de residencia",
+    city: "Ciudad de residencia",
+    country: "País de residencia",
+    postal_code: "Código postal",
+    latitude: "Latitud geográfica del usuario",
+    longitude: "Longitud geográfica del usuario",
+    traffic_source: "Canal por el que llegó el usuario: Email, SEO, Social, Display, Organic",
+    created_at: "Fecha de registro del usuario en UTC"
+  }
+}
+
+SELECT
+  id                                    AS user_id,
+  age,
+  gender,
+  state,
+  city,
+  country,
+  postal_code,
+  latitude,
+  longitude,
+  traffic_source,
+  TIMESTAMP_TRUNC(created_at, SECOND)  AS created_at
+FROM ${ref("users")}
+WHERE id IS NOT NULL

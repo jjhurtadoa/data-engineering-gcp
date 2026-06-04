@@ -1,0 +1,8 @@
+config {
+  type: "assertion",
+  description: "El precio de venta siempre debe ser mayor a cero"
+}
+
+SELECT order_item_id, sale_price
+FROM ${ref("fct_orders")}
+WHERE sale_price <= 0

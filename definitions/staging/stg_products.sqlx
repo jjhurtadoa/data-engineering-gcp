@@ -1,0 +1,34 @@
+config {
+  type: "table",
+  schema: "staging",
+  description: "Productos limpios con tipos estandarizados",
+  tags: ["staging", "products"],
+  assertions: {
+    uniqueKey: ["product_id"],
+    nonNull: ["product_id", "name", "brand", "category"]
+  },
+  columns: {
+    product_id: "Identificador único del producto",
+    name: "Nombre del producto",
+    brand: "Marca del producto",
+    category: "Categoría del producto",
+    department: "Departamento: Men, Women",
+    sku: "Código de referencia único del producto",
+    retail_price: "Precio de venta al público redondeado a 2 decimales",
+    cost: "Costo del producto redondeado a 2 decimales",
+    distribution_center_id: "Centro de distribución asignado al producto"
+  }
+}
+
+SELECT
+  id                      AS product_id,
+  name,
+  brand,
+  category,
+  department,
+  sku,
+  ROUND(retail_price, 2)  AS retail_price,
+  ROUND(cost, 2)          AS cost,
+  distribution_center_id
+FROM ${ref("products")}
+WHERE id IS NOT NULL

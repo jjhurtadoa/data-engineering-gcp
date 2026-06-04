@@ -1,0 +1,35 @@
+config {
+  type: "table",
+  schema: "marts",
+  description: "Dimensión de usuarios con atributos demográficos y geográficos",
+  tags: ["marts", "dimensions"],
+  columns: {
+    user_id: "Identificador único del usuario",
+    age: "Edad del usuario",
+    age_group: "Grupo etario: 18-24, 25-34, 35-44, 45-54, 55+",
+    gender: "Género del usuario",
+    city: "Ciudad de residencia",
+    state: "Estado o departamento de residencia",
+    country: "País de residencia",
+    traffic_source: "Canal de adquisición del usuario",
+    created_at: "Fecha de registro"
+  }
+}
+
+SELECT
+  user_id,
+  age,
+  CASE
+    WHEN age BETWEEN 18 AND 24 THEN '18-24'
+    WHEN age BETWEEN 25 AND 34 THEN '25-34'
+    WHEN age BETWEEN 35 AND 44 THEN '35-44'
+    WHEN age BETWEEN 45 AND 54 THEN '45-54'
+    ELSE '55+'
+  END AS age_group,
+  gender,
+  city,
+  state,
+  country,
+  traffic_source,
+  created_at
+FROM ${ref("stg_users")}
