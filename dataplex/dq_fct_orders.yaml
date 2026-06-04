@@ -1,0 +1,36 @@
+rules:
+  - column: order_id
+    dimension: COMPLETENESS
+    non_null_expectation: {}
+
+  - column: order_item_id
+    dimension: COMPLETENESS
+    non_null_expectation: {}
+
+  - column: sale_price
+    dimension: VALIDITY
+    range_expectation:
+      min_value: "0"
+      strict_min_enabled: true
+
+  - column: margin
+    dimension: VALIDITY
+    range_expectation:
+      min_value: "-500"
+      max_value: "5000"
+
+  - column: status
+    dimension: VALIDITY
+    set_expectation:
+      values:
+        - Complete
+        - Cancelled
+        - Processing
+        - Shipped
+        - Returned
+
+  - column: order_date
+    dimension: VALIDITY
+    range_expectation:
+      min_value: "2019-01-01"
+      max_value: "2026-12-31"
