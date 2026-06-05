@@ -36,8 +36,8 @@ bigquery-public-data.thelook_ecommerce
 | Transformation | Dataform (SQLX) | Versioned, tested, documented models |
 | Security | IAM + Policy Tags + Row Access Policies | Column and row-level data protection |
 | Governance | Dataplex + Knowledge Catalog | Lake management, data quality, lineage |
-| Semantic layer | Business Glossary | Unambiguous metric definitions for AI agents |
-| Agentic layer | Vertex AI + BigQuery Remote Functions | Natural language queries over business metrics |
+| Semantic layer | Business Glossary + Semantic View | Unambiguous metric definitions for AI agents |
+| Agentic layer | Vertex AI + BigQuery ML + Python | Natural language queries over business metrics |
 
 ## Project Structure
 
@@ -45,7 +45,7 @@ bigquery-public-data.thelook_ecommerce
 data-engineering-gcp/
 ├── definitions/
 │   ├── sources/
-│   │   └── sources.js              # raw table declarations
+│   │   └── sources.js                        # raw table declarations
 │   ├── staging/
 │   │   ├── stg_orders.sqlx
 │   │   ├── stg_order_items.sqlx
@@ -59,12 +59,21 @@ data-engineering-gcp/
 │       ├── assert_fct_positive_revenue.sqlx
 │       └── assert_fct_referential_integrity.sqlx
 ├── dataplex/
-│   ├── dq_fct_orders.yaml          # Data quality scan spec
-│   └── setup.sh                    # Lake, zones and assets setup
+│   ├── dq_fct_orders.yaml                    # Data quality scan spec
+│   └── setup.sh                              # Lake, zones and assets setup
 ├── iam/
-│   └── setup.sh                    # Service accounts and IAM roles
+│   └── setup.sh                              # Service accounts and IAM roles
 ├── glossary/
-│   └── terms.sh                    # Business glossary terms (curl commands)
+│   └── terms.sh                              # Business glossary terms
+├── vertex_ai/
+│   ├── models/
+│   │   └── create_gemini_model.sql           # Remote model over Gemini 2.5 Flash
+│   ├── views/
+│   │   └── v_business_metrics.sql            # Semantic view for agentic layer
+│   ├── queries/
+│   │   └── agentic_queries.sql               # Example BQ ML queries
+│   ├── agent.py                              # Python agentic pipeline
+│   └── execute.sh                            # Shell script to run the agent
 └── README.md
 ```
 
@@ -100,7 +109,8 @@ Business-oriented dimensional model (Kimball):
 |---|---|---|
 | `dim_users` | Dimension | User demographics with age_group bucket |
 | `dim_products` | Dimension | Product catalog with margin and margin_pct |
-| `fct_orders` | Fact | Order items joined with users and products, includes revenue and fulfillment metrics |
+| `fct_orders` | Fact | Order items joined with users and products |
+| `v_business_metrics` | Semantic View | Entry point for the agentic layer — Business Glossary definitions encoded in SQL |
 
 ### Data quality assertions (Dataform)
 
@@ -169,15 +179,72 @@ Glossary: `glosario-negocio` in Dataplex Catalog
 
 | Term | Definition |
 |---|---|
-| **Revenue** | Sum of `sale_price` for all order items with `status = Complete`. Excludes cancelled, returned, or in-process orders. Source: `marts.fct_orders.sale_price` |
-| **Margin** | Difference between `sale_price` and `cost` per item (`sale_price - cost`). Positive = profit, negative = loss. Source: `marts.fct_orders.margin` |
-| **Active User** | User who has completed at least one order with `status = Complete` in the last 90 days. Measured on `marts.fct_orders` grouped by `user_id` filtered by `order_date` |
+| **Revenue** | Sum of `sale_price` for all order items with `status = Complete`. Excludes cancelled, returned, or in-process orders. Source: `marts.v_business_metrics.revenue` |
+| **Margin** | Difference between `sale_price` and `cost` per item (`sale_price - cost`). Positive = profit, negative = loss. Source: `marts.v_business_metrics.margin` |
+| **Active User** | User who has completed at least one order with `status = Complete` in the last 90 days. Measured on `marts.v_business_metrics` grouped by `user_id` filtered by `order_date` |
 | **Churn** | User who had at least one Complete order but has not placed any order in the last 90 days. Calculated by comparing the last `order_date` per `user_id` against current date |
 
-## Setup Guide
+## Agentic Layer (Vertex AI)
+
+### Architecture
+
+```
+User question (natural language)
+        │
+        ▼
+  Gemini 2.5 Flash
+  + Business Glossary context
+        │
+        ▼
+  Generated SQL
+        │
+        ▼
+  BigQuery (v_business_metrics)
+        │
+        ▼
+  Query results
+        │
+        ▼
+  Gemini 2.5 Flash
+  + Executive summary prompt
+        │
+        ▼
+  Business answer in Spanish
+```
+
+### Components
+
+| Component | Description |
+|---|---|
+| `marts.gemini_model` | BigQuery ML remote model over Gemini 2.5 Flash via Vertex AI |
+| `marts.v_business_metrics` | Semantic view — encodes Business Glossary definitions in SQL |
+| `vertex_ai/agent.py` | Python pipeline: question → SQL → execute → answer |
+| BigQuery ML queries | Direct SQL queries using `ML.GENERATE_TEXT` |
+
+### Example questions the agent can answer
+
+- *¿Cuál es el revenue total por país en el último año?*
+- *¿Cuáles son las 5 categorías con mayor margen promedio?*
+- *¿Qué canal de adquisición genera más revenue?*
+- *¿Cuántos días tarda en promedio el envío por país?*
+
+### Setup
+
+```bash
+# Install dependencies
+pip install google-cloud-bigquery google-cloud-aiplatform vertexai --break-system-packages
+
+# Authenticate
+gcloud auth application-default login
+
+# Run the agent
+python vertex_ai/agent.py
+```
+
+## Full Setup Guide
 
 ### Prerequisites
-- GCP project with billing enabled
+- GCP project with billing enabled or $300 free trial credits
 - `gcloud` CLI authenticated
 - GitHub account
 
@@ -190,7 +257,9 @@ gcloud services enable \
   dataplex.googleapis.com \
   datacatalog.googleapis.com \
   aiplatform.googleapis.com \
-  secretmanager.googleapis.com
+  secretmanager.googleapis.com \
+  cloudfunctions.googleapis.com \
+  run.googleapis.com
 ```
 
 ### 2. Create BigQuery datasets
@@ -218,6 +287,7 @@ bash iam/setup.sh
 ### 5. Configure Dataform
 
 - Create repository in Dataform console pointing to this GitHub repo
+- Grant Secret Manager access to Dataform default SA
 - Create workspace `dev`
 - Run all actions from the workspace
 
@@ -231,21 +301,26 @@ bash dataplex/setup.sh
 
 ```bash
 bash glossary/terms.sh
+```
 
+### 8. Set up Vertex AI agentic layer
+
+```bash
+bash vertex_ai/execute.sh
 ```
 
 ## Key Concepts Demonstrated
 
 - **Three-layer architecture** (raw → staging → marts) with clear separation of concerns
 - **Data governance** with lake management, zones, and automated quality scans
-- **Column and row-level security** using GCP native tools
-- **CI/CD for data** with Dataform connected to GitHub
-- **Semantic layer** with Business Glossary designed for AI agent consumption
-- **Agentic architecture** with Vertex AI querying BigQuery via Remote Functions (Phase 4)
+- **Column and row-level security** using GCP native tools (Policy Tags, Row Access Policies)
+- **CI/CD for data** with Dataform connected to GitHub — versioned, tested, documented models
+- **Semantic layer** with Business Glossary + semantic view designed for AI agent consumption
+- **Agentic architecture** — natural language → SQL → BigQuery → business insight via Gemini
 
 ## Phase Roadmap
 
 - [x] Phase 1 — BigQuery architecture + IAM + Security
 - [x] Phase 2 — Dataform models + assertions + Git integration
 - [x] Phase 3 — Dataplex governance + Business Glossary
-- [ ] Phase 4 — Vertex AI agentic layer
+- [x] Phase 4 — Vertex AI agentic layer
